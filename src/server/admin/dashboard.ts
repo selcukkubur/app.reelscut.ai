@@ -1,14 +1,45 @@
 import { prisma } from '@/server/db';
 import { ProjectStatus } from '@/shared/constants/status';
+import { MOSCOW_TIME_ZONE } from '@/lib/date';
+
+const DAILY_NEW_USERS_WINDOW_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_DAY_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  timeZone: MOSCOW_TIME_ZONE,
+});
+const DAILY_DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: MOSCOW_TIME_ZONE,
+});
+
+function toMoscowDayKey(date: Date) {
+  return DAILY_DAY_KEY_FORMATTER.format(date);
+}
 
 export async function getAdminDashboardSnapshot() {
   const p = prisma as any;
+  const now = new Date();
+  const dailyNewUserSlots = Array.from({ length: DAILY_NEW_USERS_WINDOW_DAYS }, (_, index) => {
+    const daysAgo = DAILY_NEW_USERS_WINDOW_DAYS - 1 - index;
+    const date = new Date(now.getTime() - daysAgo * DAY_MS);
+    return {
+      key: toMoscowDayKey(date),
+      label: DAILY_DAY_LABEL_FORMATTER.format(date),
+    };
+  });
+  const oldestDailyNewUsersDate = new Date(now.getTime() - (DAILY_NEW_USERS_WINDOW_DAYS + 1) * DAY_MS);
+  const dailyNewUserSlotKeys = new Set(dailyNewUserSlots.map((slot) => slot.key));
   const [
     userCount,
     projectCount,
     pendingApprovals,
     errorCount,
     recentUsers,
+    recentUserCreations,
     recentProjects,
     recentErrors,
     // Template system counts (public/private)
@@ -45,6 +76,12 @@ export async function getAdminDashboardSnapshot() {
       orderBy: { createdAt: 'desc' },
       select: { id: true, email: true, name: true, createdAt: true },
       take: 5,
+    }),
+    prisma.user.findMany({
+      where: {
+        createdAt: { gte: oldestDailyNewUsersDate },
+      },
+      select: { createdAt: true },
     }),
     prisma.project.findMany({
       where: { deleted: false },
@@ -89,6 +126,22 @@ export async function getAdminDashboardSnapshot() {
     p.templateOverlay.count({ where: { isPublic: true } }),
     p.templateOverlay.count({ where: { isPublic: false } }),
   ]);
+  const dailyNewUsersMap = new Map<string, number>();
+  for (const slot of dailyNewUserSlots) {
+    dailyNewUsersMap.set(slot.key, 0);
+  }
+  for (const user of recentUserCreations) {
+    const dayKey = toMoscowDayKey(user.createdAt);
+    if (!dailyNewUserSlotKeys.has(dayKey)) {
+      continue;
+    }
+    dailyNewUsersMap.set(dayKey, (dailyNewUsersMap.get(dayKey) ?? 0) + 1);
+  }
+  const dailyNewUsers = dailyNewUserSlots.map((slot) => ({
+    date: slot.key,
+    label: slot.label,
+    count: dailyNewUsersMap.get(slot.key) ?? 0,
+  }));
 
   return {
     counts: {
@@ -106,6 +159,8 @@ export async function getAdminDashboardSnapshot() {
       captionsStyles: { public: captionsPublic, private: captionsPrivate },
       overlays: { public: overlaysPublic, private: overlaysPrivate },
     },
+    dailyNewUsersWindowDays: DAILY_NEW_USERS_WINDOW_DAYS,
+    dailyNewUsers,
     recentUsers: recentUsers.map((u: { id: string; email: string; name: string | null; createdAt: Date }) => ({
       ...u,
       createdAt: u.createdAt.toISOString(),

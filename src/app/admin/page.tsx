@@ -18,6 +18,7 @@ import { AdminProjectCreationSettingsForm } from '@/components/admin/AdminProjec
 import { AdminUserCardMobile } from '@/components/admin/AdminUserCardMobile';
 import { AdminProjectCardMobile } from '@/components/admin/AdminProjectCardMobile';
 import { getProjectCreationSettings } from '@/server/admin/project-creation';
+import { AdminDailyNewUsersBarChart } from '@/components/admin/AdminDailyNewUsersBarChart';
 
 export default async function AdminHomePage() {
   const [snapshot, notificationSettings, publishQueue, voiceProviderSettings, imageEditorSettings, projectCreationSettings] = await Promise.all([
@@ -68,6 +69,18 @@ export default async function AdminHomePage() {
               <div className="mt-1 text-2xl font-semibold leading-none">{counts.errors.toLocaleString()}</div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="space-y-1">
+          <CardTitle>New users per day</CardTitle>
+          <CardDescription>
+            Last {snapshot.dailyNewUsersWindowDays} days, grouped by day.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AdminDailyNewUsersBarChart data={snapshot.dailyNewUsers} />
         </CardContent>
       </Card>
 
