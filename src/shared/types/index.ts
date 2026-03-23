@@ -291,6 +291,8 @@ export interface SubscriptionStatusDTO {
   lastPurchaseAt: string | null;
   lastTransactionId: string | null;
   environment: string | null;
+  cancelAtPeriodEnd: boolean;
+  cancellationEffectiveAt: string | null;
   plans: SubscriptionPlanDTO[];
   stripeReady: boolean;
   canManageBilling: boolean;

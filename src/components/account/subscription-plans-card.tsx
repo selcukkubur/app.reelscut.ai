@@ -18,6 +18,8 @@ type SubscriptionCardCopy = {
   description: string;
   statusActive: string;
   statusInactive: string;
+  statusCancelsAtPeriodEnd: string;
+  statusActiveUntil: string;
   expiresAt: string;
   currentPlan: string;
   planTokens: (tokens: number) => string;
@@ -46,6 +48,8 @@ const COPY: Record<AppLanguageCode, SubscriptionCardCopy> = {
     description: 'Choose a recurring plan to auto-credit tokens after each successful charge.',
     statusActive: 'Subscription active',
     statusInactive: 'No active subscription',
+    statusCancelsAtPeriodEnd: 'Cancellation scheduled',
+    statusActiveUntil: 'Active until',
     expiresAt: 'Current period ends',
     currentPlan: 'Current plan',
     planTokens: (tokens) => `${tokens.toLocaleString()} tokens per charge`,
@@ -73,6 +77,8 @@ const COPY: Record<AppLanguageCode, SubscriptionCardCopy> = {
     description: 'Выберите регулярный план, чтобы токены начислялись автоматически после каждого успешного списания.',
     statusActive: 'Подписка активна',
     statusInactive: 'Активной подписки нет',
+    statusCancelsAtPeriodEnd: 'Отмена запланирована',
+    statusActiveUntil: 'Активна до',
     expiresAt: 'Текущий период до',
     currentPlan: 'Текущий план',
     planTokens: (tokens) => `${tokens.toLocaleString()} токенов за списание`,
@@ -254,6 +260,15 @@ export function SubscriptionPlansCard({ initialStatus }: { initialStatus: Subscr
                   {formatPeriodDate(status.expiresAt, '—')}
                 </span>
               </p>
+              {status.cancelAtPeriodEnd ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                  <span className="font-medium">{t.statusCancelsAtPeriodEnd}.</span>{' '}
+                  {t.statusActiveUntil}:{' '}
+                  <span className="font-semibold">
+                    {formatPeriodDate(status.cancellationEffectiveAt ?? status.expiresAt, '—')}
+                  </span>
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>

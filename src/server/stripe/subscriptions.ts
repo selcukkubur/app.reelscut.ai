@@ -151,8 +151,7 @@ async function findCustomerIdFromPurchaseHistory(userId: string) {
   return null;
 }
 
-async function findCustomerIdFromLatestStripeSubscription(userId: string) {
-  const stripe = getStripeClient();
+async function findLatestStripeSubscriptionId(userId: string) {
   const latest = await prisma.subscriptionPurchase.findFirst({
     where: {
       userId,
@@ -166,8 +165,12 @@ async function findCustomerIdFromLatestStripeSubscription(userId: string) {
     },
   });
   if (!latest) return null;
+  return normalizeId(latest.originalTransactionId);
+}
 
-  const subscriptionId = normalizeId(latest.originalTransactionId);
+async function findCustomerIdFromLatestStripeSubscription(userId: string) {
+  const stripe = getStripeClient();
+  const subscriptionId = await findLatestStripeSubscriptionId(userId);
   if (!subscriptionId) return null;
 
   try {
@@ -180,6 +183,39 @@ async function findCustomerIdFromLatestStripeSubscription(userId: string) {
       message: error instanceof Error ? error.message : String(error),
     });
     return null;
+  }
+}
+
+async function getStripeCancellationStatus(userId: string) {
+  const subscriptionId = await findLatestStripeSubscriptionId(userId);
+  if (!subscriptionId) {
+    return {
+      cancelAtPeriodEnd: false,
+      cancellationEffectiveAt: null as string | null,
+    };
+  }
+
+  const stripe = getStripeClient();
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const cancellationEffectiveAt =
+      subscription.cancel_at !== null
+        ? coerceUnixSecondsToDate(subscription.cancel_at).toISOString()
+        : null;
+    return {
+      cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
+      cancellationEffectiveAt,
+    };
+  } catch (error) {
+    logStripeSubscriptionEvent('cancellation_status_lookup_failed', {
+      userId,
+      subscriptionId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      cancelAtPeriodEnd: false,
+      cancellationEffectiveAt: null as string | null,
+    };
   }
 }
 
@@ -582,9 +618,17 @@ export async function getWebSubscriptionStatus(userId: string): Promise<Subscrip
           (await findCustomerIdFromLatestStripeSubscription(userId)),
       )
     : false;
+  const cancellationStatus = stripeReady
+    ? await getStripeCancellationStatus(userId)
+    : { cancelAtPeriodEnd: false, cancellationEffectiveAt: null as string | null };
+  const cancellationEffectiveAt =
+    cancellationStatus.cancellationEffectiveAt ??
+    (cancellationStatus.cancelAtPeriodEnd ? baseStatus.expiresAt : null);
 
   return {
     ...baseStatus,
+    cancelAtPeriodEnd: cancellationStatus.cancelAtPeriodEnd,
+    cancellationEffectiveAt,
     plans,
     stripeReady,
     canManageBilling,
