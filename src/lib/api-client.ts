@@ -189,6 +189,18 @@ export const Api = {
       errorToastTitle: 'Failed to delete character',
     }),
   getTokenSummary: () => api<import('@/shared/types').TokenSummaryDTO>('/api/tokens'),
+  getSubscriptionStatus: () => api<import('@/shared/types').SubscriptionStatusDTO>('/api/subscriptions/status'),
+  createSubscriptionCheckout: (plan: 'weekly' | 'monthly') =>
+    api<{ url: string; sessionId: string }>('/api/subscriptions/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+      errorToastTitle: 'Failed to start checkout',
+    }),
+  createSubscriptionPortal: () =>
+    api<{ url: string }>('/api/subscriptions/portal', {
+      method: 'POST',
+      errorToastTitle: 'Failed to open billing portal',
+    }),
   getTokenHistory: (options?: { page?: number; pageSize?: number }) => {
     const params = new URLSearchParams();
     if (options?.page && Number.isFinite(options.page)) params.set('page', String(Math.max(1, Math.floor(options.page))));

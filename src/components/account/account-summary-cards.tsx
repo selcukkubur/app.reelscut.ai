@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { Coins, History, UserRound } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TOKEN_COSTS } from '@/shared/constants/token-costs';
@@ -76,7 +77,10 @@ export function AccountOverviewCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.overviewTitle}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <UserRound className="h-5 w-5" />
+          <span>{copy.overviewTitle}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex items-center justify-between">
@@ -107,7 +111,10 @@ export function AccountTokensCard({ balance }: { balance: number }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.tokensTitle}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Coins className="h-5 w-5" />
+          <span>{copy.tokensTitle}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between text-sm">
@@ -127,7 +134,10 @@ export function AccountTokensCard({ balance }: { balance: number }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/tokens/activity">{copy.tokenActivity}</Link>
+            <Link href="/tokens/activity">
+              <History className="mr-2 h-4 w-4" />
+              {copy.tokenActivity}
+            </Link>
           </Button>
         </div>
       </CardContent>

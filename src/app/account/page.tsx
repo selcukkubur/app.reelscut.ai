@@ -9,6 +9,8 @@ import { formatDateTime } from '@/lib/date';
 import { LanguagePreferenceCard } from '@/components/account/language-preference-card';
 import { normalizeAppLanguage } from '@/shared/constants/app-language';
 import { AccountOverviewCard, AccountTokensCard } from '@/components/account/account-summary-cards';
+import { SubscriptionPlansCard } from '@/components/account/subscription-plans-card';
+import { getWebSubscriptionStatus } from '@/server/stripe/subscriptions';
 
 type SessionUser = {
   id?: string;
@@ -66,6 +68,7 @@ export default async function AccountPage() {
       }
     : null;
   const preferredLanguage = normalizeAppLanguage(user.preferredLanguage);
+  const subscriptionStatus = await getWebSubscriptionStatus(user.id);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -77,6 +80,7 @@ export default async function AccountPage() {
       />
 
       <LanguagePreferenceCard initialLanguage={preferredLanguage} />
+      <SubscriptionPlansCard initialStatus={subscriptionStatus} />
       <AccountTokensCard balance={balance} />
 
       <TelegramIntegrationCard

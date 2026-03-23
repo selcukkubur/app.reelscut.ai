@@ -13,6 +13,13 @@ const EnvSchema = z.object({
   APPLE_PRIVATE_KEY: z.string().min(1).optional(),
   APPLE_IAP_SHARED_SECRET: z.string().min(1).optional(),
   APPLE_IAP_ENVIRONMENT: z.enum(['sandbox', 'production']).default('sandbox'),
+  STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  STRIPE_WEEKLY_PRICE_ID: z.string().min(1).optional(),
+  STRIPE_MONTHLY_PRICE_ID: z.string().min(1).optional(),
+  STRIPE_BILLING_SUCCESS_PATH: z.string().min(1).default('/account?billing=success'),
+  STRIPE_BILLING_CANCEL_PATH: z.string().min(1).default('/account?billing=cancelled'),
+  STRIPE_BILLING_PORTAL_RETURN_PATH: z.string().min(1).default('/account'),
   NEXTAUTH_URL: z.string().min(1).optional(),
   NEXTAUTH_SECRET: z.string().min(1).optional(),
   MOBILE_JWT_SECRET: z.string().min(32).optional(),
@@ -66,6 +73,20 @@ const EnvSchema = z.object({
         if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
       }
       return false;
+    },
+    z.boolean(),
+  ),
+  STRIPE_SUBSCRIPTION_LOGS_ENABLED: z.preprocess(
+    (value) => {
+      if (value === undefined) return true;
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value !== 0;
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+        if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+      }
+      return true;
     },
     z.boolean(),
   ),

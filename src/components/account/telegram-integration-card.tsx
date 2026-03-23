@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Copy, ExternalLink, RefreshCcw, Send, Unplug, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -271,7 +271,10 @@ export function TelegramIntegrationCard({ telegramEnabled, botUsername, initialA
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.title}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Send className="h-5 w-5" />
+          <span>{copy.title}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         {!enabled && (
@@ -298,6 +301,7 @@ export function TelegramIntegrationCard({ telegramEnabled, botUsername, initialA
               }}>
                 <DialogTrigger asChild>
                   <Button variant="destructive" disabled={loading}>
+                    <Unplug className="mr-2 h-4 w-4" />
                     {copy.disconnectTelegram}
                   </Button>
                 </DialogTrigger>
@@ -311,16 +315,19 @@ export function TelegramIntegrationCard({ telegramEnabled, botUsername, initialA
                   <div className="mt-4 flex justify-end gap-2">
                     <DialogClose asChild>
                       <Button variant="outline" disabled={loading}>
+                        <X className="mr-2 h-4 w-4" />
                         {copy.cancel}
                       </Button>
                     </DialogClose>
                     <Button variant="destructive" onClick={handleDisconnect} disabled={loading}>
+                      <Unplug className="mr-2 h-4 w-4" />
                       {loading ? copy.disconnecting : copy.disconnect}
                     </Button>
                   </div>
                 </DialogContent>
               </Dialog>
               <Button variant="outline" onClick={handleRefresh} disabled={refreshing || loading}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
                 {refreshing ? copy.refreshing : copy.refreshStatus}
               </Button>
             </div>
@@ -343,6 +350,7 @@ export function TelegramIntegrationCard({ telegramEnabled, botUsername, initialA
                 {loading ? copy.connecting : copy.connectToTelegram}
               </Button>
               <Button variant="outline" onClick={handleRefresh} disabled={refreshing || loading}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
                 {refreshing ? copy.refreshing : copy.refreshStatus}
               </Button>
             </div>
@@ -356,11 +364,13 @@ export function TelegramIntegrationCard({ telegramEnabled, botUsername, initialA
                   <Input value={pendingLink.code} readOnly className="font-mono" />
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={handleCopy}>
+                      <Copy className="mr-2 h-4 w-4" />
                       {copy.copyCode}
                     </Button>
                     {pendingLink.url && enabled && (
                       <Button asChild>
                         <a href={pendingLink.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="mr-2 h-4 w-4" />
                           {copy.openTelegram}
                         </a>
                       </Button>

@@ -274,6 +274,28 @@ export interface TokenHistoryDTO {
   totalPages: number;
 }
 
+export interface SubscriptionPlanDTO {
+  planKey: 'weekly' | 'monthly';
+  productId: string;
+  label: string;
+  interval: 'week' | 'month';
+  priceUsd: number;
+  tokens: number;
+  configured: boolean;
+}
+
+export interface SubscriptionStatusDTO {
+  active: boolean;
+  productId: string | null;
+  expiresAt: string | null;
+  lastPurchaseAt: string | null;
+  lastTransactionId: string | null;
+  environment: string | null;
+  plans: SubscriptionPlanDTO[];
+  stripeReady: boolean;
+  canManageBilling: boolean;
+}
+
 export interface ProjectDraftSettingsSnapshot {
   includeDefaultMusic: boolean;
   addOverlay: boolean;

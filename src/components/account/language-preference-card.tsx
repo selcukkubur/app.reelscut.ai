@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Languages, Loader2 } from 'lucide-react';
 import { Api } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -71,7 +71,10 @@ export function LanguagePreferenceCard({ initialLanguage }: { initialLanguage: A
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.title}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Languages className="h-5 w-5" />
+          <span>{copy.title}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-gray-500 dark:text-gray-400">{copy.hint}</p>

@@ -29,12 +29,24 @@ type AppleLatestReceipt = {
   expires_date_ms?: string;
 };
 
-type PurchaseSource = 'user_purchase' | 'guest_purchase' | 'auto_renew';
+export type PurchaseSource = 'user_purchase' | 'guest_purchase' | 'auto_renew';
 
 type ProcessPurchaseInput = {
   userId: string;
   receiptData?: string | null;
   signedTransactions?: string[];
+  source?: PurchaseSource;
+};
+
+export type ProcessServerSubscriptionPurchaseInput = {
+  userId: string;
+  productId: string;
+  transactionId: string;
+  originalTransactionId: string;
+  purchaseDate: Date;
+  expiresDate?: Date | null;
+  environment: string;
+  payload?: Prisma.JsonValue;
   source?: PurchaseSource;
 };
 
@@ -46,6 +58,15 @@ type PurchaseDescriptor = {
   expiresDate?: Date | null;
   environment: string;
   payload: Prisma.JsonValue;
+};
+
+export type SubscriptionPurchaseProcessingResult = {
+  alreadyProcessed: boolean;
+  tokensGranted: number;
+  balance: number;
+  productId: string;
+  transactionId: string;
+  expiresAt: string | null;
 };
 
 export type UserSubscriptionStatus = {
@@ -138,6 +159,26 @@ export async function getUserSubscriptionStatus(userId: string): Promise<UserSub
     lastTransactionId: latestPurchase?.transactionId ?? null,
     environment: latestPurchase?.environment ?? null,
   };
+}
+
+export async function processServerSubscriptionPurchase(
+  input: ProcessServerSubscriptionPurchaseInput,
+): Promise<SubscriptionPurchaseProcessingResult> {
+  const descriptor: PurchaseDescriptor = {
+    productId: input.productId,
+    transactionId: input.transactionId,
+    originalTransactionId: input.originalTransactionId,
+    purchaseDate: input.purchaseDate,
+    expiresDate: input.expiresDate ?? null,
+    environment: input.environment,
+    payload:
+      input.payload ??
+      ({
+        source: 'server',
+      } as Prisma.JsonValue),
+  };
+
+  return finalizePurchase(input.userId, descriptor, input.source ?? 'user_purchase');
 }
 
 async function processReceiptPurchase(userId: string, receiptData: string, source: PurchaseSource = 'user_purchase') {

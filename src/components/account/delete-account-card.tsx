@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Trash2, TriangleAlert, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { toast } from 'sonner';
@@ -99,7 +100,10 @@ export function DeleteAccountCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{copy.title}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <TriangleAlert className="h-5 w-5" />
+          <span>{copy.title}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-gray-600 dark:text-gray-300">
@@ -120,6 +124,7 @@ export function DeleteAccountCard() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button type="button" variant="destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
               {copy.deleteButton}
             </Button>
           </DialogTrigger>
@@ -133,6 +138,7 @@ export function DeleteAccountCard() {
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
               <DialogClose asChild>
                 <Button type="button" variant="outline" disabled={isPending}>
+                  <X className="mr-2 h-4 w-4" />
                   {copy.cancel}
                 </Button>
               </DialogClose>
@@ -142,6 +148,7 @@ export function DeleteAccountCard() {
                 disabled={isPending}
                 onClick={handleDelete}
               >
+                <TriangleAlert className="mr-2 h-4 w-4" />
                 {isPending ? copy.deleting : copy.confirmDelete}
               </Button>
             </div>

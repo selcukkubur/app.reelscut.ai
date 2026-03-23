@@ -9,18 +9,39 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip } from '@/components/common/Tooltip';
-import { Wand2, Loader2, Settings, Smartphone, User, Lightbulb, FileText, Layers, AlertTriangle } from 'lucide-react';
+import {
+  Wand2,
+  Loader2,
+  Settings,
+  Smartphone,
+  User,
+  Lightbulb,
+  FileText,
+  Layers,
+  AlertTriangle,
+  CheckCircle2,
+  Coins,
+  Video,
+  Crown,
+  CreditCard,
+  Mail,
+  BadgeDollarSign,
+} from 'lucide-react';
 import { LIMITS } from '@/shared/constants/limits';
 import { useTokenSummary } from '@/hooks/useTokenSummary';
 import { TOKEN_COSTS } from '@/shared/constants/token-costs';
+import { SUBSCRIPTION_PRODUCTS_BY_PLAN_KEY } from '@/shared/constants/subscriptions';
 import { pickRandomPlaceholder } from '@/shared/constants/prompt-placeholders';
 import { DEFAULT_LANGUAGE, TargetLanguageCode, normalizeLanguageList, resolvePrimaryLanguage } from '@/shared/constants/languages';
 import { useSettings } from '@/hooks/useSettings';
 import { storeProjectDraft } from '@/lib/project-draft';
+import { Api } from '@/lib/api-client';
+import { CONTACT_EMAIL } from '@/shared/constants/app';
 import { toast } from 'sonner';
-import type { CharacterSelectionSnapshot, PendingProjectDraft, LanguageVoiceMap } from '@/shared/types';
+import type { CharacterSelectionSnapshot, PendingProjectDraft, LanguageVoiceMap, SubscriptionStatusDTO } from '@/shared/types';
 import { useVoices } from '@/hooks/useVoices';
 import { TemplatePicker, type TemplateSelection } from '@/components/templates/TemplatePicker';
 import { normalizeLanguageVoiceMap, extractExplicitLanguageVoices } from '@/shared/voices/language-voice-map';
@@ -84,6 +105,22 @@ type PromptInputCopy = {
   notEnoughTokensDescription: (projectCost: number, tokenBalance: number) => string;
   buyTokens: string;
   tokenWarning: (projectCost: number, tokenBalance: number, duration: number, useExact: boolean) => string;
+  paywallTitle: string;
+  paywallDescription: (projectCost: number, tokenBalance: number) => string;
+  paywallPerCharge: string;
+  paywallVideosPerPeriod: (videos: number, interval: 'week' | 'month') => string;
+  paywallChoosePlan: string;
+  paywallOpeningCheckout: string;
+  paywallCurrentPlan: string;
+  paywallMonthlyLimitReached: string;
+  paywallMonthlyLimitWait: string;
+  paywallMonthlyLimitOr: string;
+  paywallMonthlyLimitEmailLink: string;
+  paywallUnavailable: string;
+  paywallWeekLabel: string;
+  paywallMonthLabel: string;
+  paywallSavePrefix: string;
+  paywallSaveSuffix: string;
 };
 
 const PROMPT_INPUT_COPY: Record<AppLanguageCode, PromptInputCopy> = {
@@ -111,6 +148,23 @@ const PROMPT_INPUT_COPY: Record<AppLanguageCode, PromptInputCopy> = {
     buyTokens: 'Buy tokens in the app',
     tokenWarning: (projectCost, tokenBalance, duration, useExact) =>
       `— You need ${projectCost} tokens for a${useExact ? ' default ' : ' '}${duration}-second project, but only have ${tokenBalance}. Add more tokens or shorten the duration.`,
+    paywallTitle: 'Unlock more videos',
+    paywallDescription: (projectCost, tokenBalance) =>
+      `You need ${projectCost} tokens but have ${tokenBalance}. Subscribe to add tokens automatically after each charge.`,
+    paywallPerCharge: 'tokens per charge',
+    paywallVideosPerPeriod: (videos, interval) => `${videos} videos/${interval}`,
+    paywallChoosePlan: 'Choose plan',
+    paywallOpeningCheckout: 'Opening checkout…',
+    paywallCurrentPlan: 'Current plan',
+    paywallMonthlyLimitReached: 'Current limit reached.',
+    paywallMonthlyLimitWait: 'Wait for the next billing period to increase token amount,',
+    paywallMonthlyLimitOr: 'or email YumCut founder via',
+    paywallMonthlyLimitEmailLink: 'email',
+    paywallUnavailable: 'Unavailable',
+    paywallWeekLabel: 'week',
+    paywallMonthLabel: 'month',
+    paywallSavePrefix: 'Save',
+    paywallSaveSuffix: 'vs weekly',
   },
   ru: {
     heading: 'Какое видео создать?',
@@ -136,6 +190,23 @@ const PROMPT_INPUT_COPY: Record<AppLanguageCode, PromptInputCopy> = {
     buyTokens: 'Купить токены',
     tokenWarning: (projectCost, tokenBalance, duration, useExact) =>
       `— Нужно ${projectCost} токенов для${useExact ? ' базового ' : ' '}${duration}-секундного проекта, но у вас только ${tokenBalance}. Пополните баланс или сократите длительность.`,
+    paywallTitle: 'Откройте больше видео',
+    paywallDescription: (projectCost, tokenBalance) =>
+      `Для проекта нужно ${projectCost} токенов, а у вас ${tokenBalance}. Подписка будет автоматически пополнять токены после каждого успешного списания.`,
+    paywallPerCharge: 'токенов за списание',
+    paywallVideosPerPeriod: (videos, interval) => `${videos} видео/${interval === 'week' ? 'неделя' : 'месяц'}`,
+    paywallChoosePlan: 'Выбрать план',
+    paywallOpeningCheckout: 'Открываем оплату…',
+    paywallCurrentPlan: 'Текущий план',
+    paywallMonthlyLimitReached: 'Текущий лимит достигнут.',
+    paywallMonthlyLimitWait: 'Дождитесь следующего биллинг-периода, чтобы увеличить количество токенов,',
+    paywallMonthlyLimitOr: 'или напишите основателю YumCut на',
+    paywallMonthlyLimitEmailLink: 'email',
+    paywallUnavailable: 'Недоступно',
+    paywallWeekLabel: 'неделю',
+    paywallMonthLabel: 'месяц',
+    paywallSavePrefix: 'Экономия',
+    paywallSaveSuffix: 'vs weekly',
   },
 };
 
@@ -162,6 +233,9 @@ export function PromptInput() {
   const [pendingToolPrefill, setPendingToolPrefill] = useState<ToolLandingPrefill | null>(null);
   const [toolPrefillReady, setToolPrefillReady] = useState(false);
   const { summary: tokenSummary, balance: tokenBalance, loading: tokensLoading } = useTokenSummary();
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<'weekly' | 'monthly' | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusDTO | null>(null);
   const [templateSelection, setTemplateSelection] = useState<TemplateSelection | null>(null);
   const handleTemplateChange = useCallback((sel: TemplateSelection | null) => setTemplateSelection(sel), []);
   const router = useRouter();
@@ -354,6 +428,43 @@ export function PromptInput() {
   const projectCreationReason = (settings?.projectCreationDisabledReason || '').trim();
   const displayedProjectCreationReason = projectCreationReason || copy.creationDisabledNoReason;
   const showLowBalanceWarning = tokenBalance <= projectCost;
+  const isEnglish = language === 'en';
+  const weeklyPlan = SUBSCRIPTION_PRODUCTS_BY_PLAN_KEY.weekly;
+  const monthlyPlan = SUBSCRIPTION_PRODUCTS_BY_PLAN_KEY.monthly;
+  const activePlanKey: 'weekly' | 'monthly' | null =
+    subscriptionStatus?.active && subscriptionStatus.productId === weeklyPlan.productId
+      ? 'weekly'
+      : subscriptionStatus?.active && subscriptionStatus.productId === monthlyPlan.productId
+        ? 'monthly'
+        : null;
+  const monthlyLimitReached = activePlanKey === 'monthly';
+
+  const openSubscriptionCheckout = useCallback(async (plan: 'weekly' | 'monthly') => {
+    setCheckoutPlan(plan);
+    try {
+      const { url } = await Api.createSubscriptionCheckout(plan);
+      window.location.href = url;
+    } catch (error) {
+      void error;
+    } finally {
+      setCheckoutPlan(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isEnglish || !paywallOpen) return;
+    let cancelled = false;
+    void Api.getSubscriptionStatus()
+      .then((status) => {
+        if (!cancelled) setSubscriptionStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setSubscriptionStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEnglish, paywallOpen]);
 
   const templateCustomData = templateSelection?.customData ?? null;
 
@@ -406,6 +517,11 @@ export function PromptInput() {
     }
     if (projectStateValidation.disabled.submit) return;
     if (!hasTokensForCurrent) {
+      if (isEnglish) {
+        if (tokensLoading) return;
+        setPaywallOpen(true);
+        return;
+      }
       if (typeof window !== 'undefined') {
         const { toast } = await import('sonner');
         toast.error(copy.notEnoughTokensTitle, {
@@ -710,7 +826,11 @@ export function PromptInput() {
               className="w-full sm:w-9 sm:h-9 sm:px-0 sm:rounded-full"
               onClick={submit}
               disabled={
-                !text.trim() || submitting || projectStateValidation.disabled.submit || projectCreationDisabled || (!tokensLoading && !hasTokensForCurrent)
+                !text.trim() ||
+                submitting ||
+                projectStateValidation.disabled.submit ||
+                projectCreationDisabled ||
+                (!isEnglish && !tokensLoading && !hasTokensForCurrent)
               }
               aria-label={copy.createProject}
               title={copy.createProject}
@@ -727,7 +847,7 @@ export function PromptInput() {
         <div className="mt-3 flex items-center gap-3 flex-wrap">
           {/* Character and exact script controls moved into the textarea control bar above */}
         </div>
-        {(!tokensLoading && tokenSummary && showLowBalanceWarning) && (
+        {(!isEnglish && !tokensLoading && tokenSummary && showLowBalanceWarning) && (
           <TokenLowBalanceAlert
             language={language}
             buyTokensLabel={copy.buyTokens}
@@ -740,6 +860,111 @@ export function PromptInput() {
           />
         )}
       </div>
+      <Dialog open={paywallOpen} onOpenChange={setPaywallOpen}>
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-2xl p-0" ariaDescription={copy.paywallDescription(projectCost, tokenBalance)}>
+          <div className="p-4 sm:p-6">
+            <DialogHeader className="mb-2 block space-y-2">
+              <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                <Crown className="h-5 w-5 text-amber-500" />
+                <span>{copy.paywallTitle}</span>
+              </DialogTitle>
+              <DialogDescription>{copy.paywallDescription(projectCost, tokenBalance)}</DialogDescription>
+            </DialogHeader>
+
+            {monthlyLimitReached ? (
+              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="font-semibold">{copy.paywallMonthlyLimitReached}</p>
+                <p className="mt-1">
+                  {copy.paywallMonthlyLimitWait} {copy.paywallMonthlyLimitOr}{' '}
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="underline underline-offset-2">
+                    <Mail className="mr-1 inline h-3.5 w-3.5" />
+                    {copy.paywallMonthlyLimitEmailLink}
+                  </a>
+                  .
+                </p>
+              </div>
+            ) : null}
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {[weeklyPlan, monthlyPlan].map((plan) => {
+                const isLoading = checkoutPlan === plan.planKey;
+                const videos = Math.floor(plan.tokens / 30);
+                const perLabel = plan.interval === 'week' ? copy.paywallWeekLabel : copy.paywallMonthLabel;
+                const isCurrentPlan = activePlanKey === plan.planKey;
+                const isPopular = plan.planKey === 'monthly';
+                const monthlySavingsVsWeekly = Math.max((weeklyPlan.priceUsd * 4) - monthlyPlan.priceUsd, 0);
+                const canChoose =
+                  !monthlyLimitReached && (!activePlanKey || (activePlanKey === 'weekly' && plan.planKey === 'monthly'));
+                return (
+                  <div
+                    key={plan.planKey}
+                    className={[
+                      'flex flex-col rounded-xl border p-4 sm:p-5',
+                      isPopular
+                        ? 'border-blue-300 bg-blue-50/40 shadow-sm dark:border-blue-800 dark:bg-blue-950/20'
+                        : 'border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/40',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-start justify-center gap-2">
+                      <span className="inline-flex items-end gap-1 text-gray-900 dark:text-gray-100">
+                        <span className="text-4xl font-extrabold leading-none">${plan.priceUsd.toFixed(2)}</span>
+                        <span className="pb-0.5 text-sm font-medium text-gray-500 dark:text-gray-400">/{perLabel}</span>
+                      </span>
+                    </div>
+                    <div className="mt-4 flex-1 space-y-2 rounded-lg border border-gray-200/80 bg-white/70 p-3 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-950/30 dark:text-gray-300">
+                      <p className="flex items-center gap-2">
+                        <Video className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                        <span>{copy.paywallVideosPerPeriod(videos, plan.interval)}</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <Coins className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                        <span>{plan.tokens.toLocaleString()} {copy.paywallPerCharge}</span>
+                      </p>
+                      {plan.planKey === 'monthly' && monthlySavingsVsWeekly > 0 ? (
+                        <p className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <BadgeDollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                          <span>
+                            {copy.paywallSavePrefix} <span className="font-semibold">${monthlySavingsVsWeekly.toFixed(2)}</span>{' '}
+                            {copy.paywallSaveSuffix}
+                          </span>
+                        </p>
+                      ) : null}
+                    </div>
+                    <Button
+                      className="mt-4 w-full"
+                      onClick={() => void openSubscriptionCheckout(plan.planKey)}
+                      disabled={checkoutPlan !== null || !canChoose}
+                      variant={isCurrentPlan ? 'outline' : 'default'}
+                    >
+                      {isCurrentPlan ? (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          {copy.paywallCurrentPlan}
+                        </>
+                      ) : isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {copy.paywallOpeningCheckout}
+                        </>
+                      ) : canChoose ? (
+                        <>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          {copy.paywallChoosePlan}
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="mr-2 h-4 w-4" />
+                          {copy.paywallUnavailable}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Templates picker under textarea & settings */}
       <TemplatePicker onChange={handleTemplateChange} />
 
