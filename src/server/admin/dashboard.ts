@@ -4,6 +4,7 @@ import { MOSCOW_TIME_ZONE } from '@/lib/date';
 
 const DAILY_NEW_USERS_WINDOW_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const GUEST_EMAIL_SUFFIX = '@guest.yumcut';
 const DAILY_DAY_KEY_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric',
   month: '2-digit',
@@ -20,7 +21,15 @@ function toMoscowDayKey(date: Date) {
   return DAILY_DAY_KEY_FORMATTER.format(date);
 }
 
-export async function getAdminDashboardSnapshot() {
+type AdminDashboardSnapshotOptions = {
+  includeGuestUsers?: boolean;
+};
+
+export async function getAdminDashboardSnapshot(options?: AdminDashboardSnapshotOptions) {
+  const includeGuestUsers = options?.includeGuestUsers === true;
+  const guestUserFilter = includeGuestUsers
+    ? undefined
+    : { email: { not: { endsWith: GUEST_EMAIL_SUFFIX } } };
   const p = prisma as any;
   const now = new Date();
   const dailyNewUserSlots = Array.from({ length: DAILY_NEW_USERS_WINDOW_DAYS }, (_, index) => {
@@ -58,7 +67,7 @@ export async function getAdminDashboardSnapshot() {
     overlaysPublic,
     overlaysPrivate,
   ] = await prisma.$transaction([
-    prisma.user.count(),
+    prisma.user.count({ where: guestUserFilter }),
     prisma.project.count({ where: { deleted: false } }),
     prisma.project.count({
       where: {
@@ -73,6 +82,7 @@ export async function getAdminDashboardSnapshot() {
     }),
     prisma.project.count({ where: { deleted: false, status: ProjectStatus.Error } }),
     prisma.user.findMany({
+      where: guestUserFilter,
       orderBy: { createdAt: 'desc' },
       select: { id: true, email: true, name: true, createdAt: true },
       take: 5,
@@ -80,6 +90,7 @@ export async function getAdminDashboardSnapshot() {
     prisma.user.findMany({
       where: {
         createdAt: { gte: oldestDailyNewUsersDate },
+        ...(guestUserFilter ?? {}),
       },
       select: { createdAt: true },
     }),
